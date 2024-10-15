@@ -41,7 +41,7 @@ exports.loginInstructor = async (req, res) => {
       return res.status(401).send("Invalid credentials.");
     }
 
-    res.status(200).send({ message: "Login successful.", user:{role:"instructor"} });
+    res.status(200).send({ message: "Login successful.", user:{role:"instructor",username:instructor.name} });
   } catch (error) {
     res.status(500).send("Error logging in: " + error.message);
   }
@@ -73,8 +73,9 @@ exports.deleteInstructor = async (req, res) => {
 }; // Edit (Update) instructor by ID
 exports.updateInstructor = async (req, res) => {
   const { name, email, department } = req.body;
-  const instructorId = req.params._id;
-
+  const instructorId = req.params.id;
+  console.log(req.params)
+  console.log(name,email,department,instructorId)
   try {
     // Find the instructor by ID and update with the new data
     const updatedInstructor = await Instructor.findByIdAndUpdate(
