@@ -1,14 +1,20 @@
 const Instructor = require("../models/Instructor"); // Ensure the path is correct
 
 exports.addInstructor = async (req, res) => {
-  const { name, email, password, department } = req.body;
+  const { name, email, password, department, role } = req.body;
 
   // Validate incoming data (optional but recommended)
   if (!name || !email || !password || !department) {
     return res.status(400).send("All fields are required.");
   }
 
-  const newInstructor = new Instructor({ name, email, password, department });
+  const newInstructor = new Instructor({
+    name,
+    email,
+    password,
+    department,
+    role,
+  });
 
   try {
     await newInstructor.save();
@@ -27,15 +33,15 @@ exports.addInstructor = async (req, res) => {
 };
 
 exports.loginInstructor = async (req, res) => {
-  const { email, password } = req.body;
-
+  console.log(req.body);
+  const { email, password, role } = req.body;
   try {
-    const instructor = await Instructor.findOne({ email, password });
+    const instructor = await Instructor.findOne({ email, password, role });
     if (!instructor) {
       return res.status(401).send("Invalid credentials.");
     }
 
-    res.status(200).send("Instructor logged in successfully.");
+    res.status(200).send({ message: "Login successful.", user:{role:"instructor"} });
   } catch (error) {
     res.status(500).send("Error logging in: " + error.message);
   }
@@ -66,14 +72,14 @@ exports.deleteInstructor = async (req, res) => {
   }
 }; // Edit (Update) instructor by ID
 exports.updateInstructor = async (req, res) => {
-  const { name, email,  department } = req.body;
+  const { name, email, department } = req.body;
   const instructorId = req.params._id;
 
   try {
     // Find the instructor by ID and update with the new data
     const updatedInstructor = await Instructor.findByIdAndUpdate(
       instructorId,
-      { name, email,  department },
+      { name, email, department },
       { new: true, runValidators: true } // `new: true` returns the updated document
     );
 

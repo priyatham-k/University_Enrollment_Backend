@@ -98,3 +98,20 @@ exports.deleteCourse = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+// controllers/courses.js
+exports.getCoursesByInstructor = async (req, res) => {
+  const { instructorId } = req.params;
+
+  try {
+    // Find all courses where the instructor field matches the provided instructorId
+    const courses = await Course.find({ instructor: instructorId }).populate('instructor');
+    
+    if (courses.length === 0) {
+      return res.status(404).json({ message: "No courses found for this instructor." });
+    }
+
+    res.status(200).json(courses);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
