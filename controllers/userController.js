@@ -137,7 +137,7 @@ exports.dropCourse = async (req, res) => {
 exports.courcepayments = async (req, res) => {
   console.log("Route hit, params:", req.params, "body:", req.body); // Log to see if route is hit
   const { userId } = req.params;
-  const { payments } = req.body;
+  const { payments } = req.body; 
 
   try {
     const user = await User.findById(userId);
