@@ -33,7 +33,6 @@ exports.addInstructor = async (req, res) => {
 };
 
 exports.loginInstructor = async (req, res) => {
-  console.log(req.body);
   const { email, password, role } = req.body;
   try {
     const instructor = await Instructor.findOne({ email, password, role });
@@ -41,7 +40,7 @@ exports.loginInstructor = async (req, res) => {
       return res.status(401).send("Invalid credentials.");
     }
 
-    res.status(200).send({ message: "Login successful.", user:{role:"instructor",username:instructor.name} });
+    res.status(200).send({ message: "Login successful.", user:{role:"instructor",username:instructor.name,_id:instructor._id} });
   } catch (error) {
     res.status(500).send("Error logging in: " + error.message);
   }
@@ -74,8 +73,6 @@ exports.deleteInstructor = async (req, res) => {
 exports.updateInstructor = async (req, res) => {
   const { name, email, department } = req.body;
   const instructorId = req.params.id;
-  console.log(req.params)
-  console.log(name,email,department,instructorId)
   try {
     // Find the instructor by ID and update with the new data
     const updatedInstructor = await Instructor.findByIdAndUpdate(

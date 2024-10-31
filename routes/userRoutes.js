@@ -5,7 +5,7 @@ const userController = require("../controllers/userController");
 
 // Register route
 router.post("/register", userController.register);
-
+router.get("/students", userController.getAllStudents);
 // Login route
 router.post("/login", userController.login);
 router.post("/addCourse/:userId", userController.registerCourse);

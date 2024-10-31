@@ -32,7 +32,6 @@ exports.register = async (req, res) => {
 // Login a user
 exports.login = async (req, res) => {
   const { username, password, role } = req.body;
-  console.log(req.body);
   // Basic validation
   if (!username || !password || !role) {
     return res
@@ -109,15 +108,11 @@ exports.dropCourse = async (req, res) => {
   const { courseId } = req.body; // Expecting courseId in the request body
 
   try {
-    
-
     // Find the user and remove the course from their enrolled courses
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-
-  
 
     // Remove corresponding payment related to the dropped course
     user.payment = user.payment.filter(
@@ -128,16 +123,17 @@ exports.dropCourse = async (req, res) => {
     await user.save();
 
     // Return the updated user object
-    res.status(200).json({ message: "Course and payment removed successfully", user });
+    res
+      .status(200)
+      .json({ message: "Course and payment removed successfully", user });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
 exports.courcepayments = async (req, res) => {
-  console.log("Route hit, params:", req.params, "body:", req.body); // Log to see if route is hit
   const { userId } = req.params;
-  const { payments } = req.body; 
+  const { payments } = req.body;
 
   try {
     const user = await User.findById(userId);
@@ -179,7 +175,15 @@ exports.courcepayments = async (req, res) => {
       user,
     });
   } catch (error) {
-    console.error(error);
     return res.status(500).json({ message: "Server error", error });
+  }
+};
+// Get all users with role "student"
+exports.getAllStudents = async (req, res) => {
+  try {
+    const students = await User.find({ role: "student" });
+    res.status(200).json(students);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
