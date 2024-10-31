@@ -10,7 +10,7 @@ const userSchema = new mongoose.Schema({
     required: true,
   },
   enrolledCourses: [{ type: mongoose.Schema.Types.Mixed }],
-  payment: [{ courceName: String, payment: String }],
+  payment: [{ courseName: String,sectionName: String, amount: String }],
 });
 
 const User = mongoose.model("User", userSchema);

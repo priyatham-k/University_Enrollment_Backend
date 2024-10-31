@@ -1,5 +1,6 @@
 const Course = require("../models/Course");
 const Instructor = require("../models/Instructor");
+const User = require("../models/user");
 const mongoose = require("mongoose");
 
 exports.addCourse = async (req, res) => {
@@ -157,6 +158,7 @@ exports.getCoursesByInstructor = async (req, res) => {
   const { instructorId } = req.params;
 
   try {
+    // Find all courses taught by this instructor
     const courses = await Course.find({ "sections.instructor": instructorId });
 
     if (courses.length === 0) {
@@ -165,7 +167,34 @@ exports.getCoursesByInstructor = async (req, res) => {
         .json({ message: "No courses found for this instructor." });
     }
 
-    res.status(200).json(courses);
+    // For each course and section, find enrolled students
+    const coursesWithStudents = await Promise.all(
+      courses.map(async (course) => {
+        const sectionsWithStudents = await Promise.all(
+          course.sections.map(async (section) => {
+            const enrolledStudents = await User.find(
+              { "payment.courseName": course.courseName, "payment.sectionName": section.sectionName },
+              "username"
+            );
+
+            return {
+              sectionName: section.sectionName,
+              enrolledStudents: enrolledStudents.map((student) => student.username),
+            };
+          })
+        );
+
+        return {
+          courseName: course.courseName,
+          courseCode: course.courseCode,
+          term: course.term,
+          description: course.description,
+          sections: sectionsWithStudents,
+        };
+      })
+    );
+
+    res.status(200).json(coursesWithStudents);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

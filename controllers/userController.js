@@ -133,8 +133,8 @@ exports.dropCourse = async (req, res) => {
 
 exports.courcepayments = async (req, res) => {
   const { userId } = req.params;
-  const { payments } = req.body;
-
+  const { payments } = req.body; // Expect payments to be an array, not payments.payments
+  
   try {
     const user = await User.findById(userId);
     if (!user) {
@@ -145,10 +145,13 @@ exports.courcepayments = async (req, res) => {
     const errors = [];
 
     payments.forEach((paymentEntry) => {
+      console.log(paymentEntry); // Should correctly log each payment entry
+      
       // Check if the course name already exists in the user's payment array
       const alreadyPaid = user.payment.some(
-        (payment) => payment.courceName === paymentEntry.courseName
+        (payment) => payment.courseName === paymentEntry.courseName
       );
+      
       if (alreadyPaid) {
         errors.push(
           `Payment for the course "${paymentEntry.courseName}" has already been made.`
@@ -156,8 +159,9 @@ exports.courcepayments = async (req, res) => {
       } else {
         // If not already paid, push the new payment entry
         user.payment.push({
-          courceName: paymentEntry.courseName,
-          payment: paymentEntry.payment,
+          courseName: paymentEntry.courseName,
+          sectionName: paymentEntry.sectionName,
+          amount: paymentEntry.amount,
         });
       }
     });
@@ -166,7 +170,7 @@ exports.courcepayments = async (req, res) => {
     if (errors.length > 0) {
       return res
         .status(400)
-        .json({ message: "Some subjects are already Enrolled", errors });
+        .json({ message: "Some subjects are already enrolled", errors });
     }
 
     await user.save();
@@ -178,6 +182,7 @@ exports.courcepayments = async (req, res) => {
     return res.status(500).json({ message: "Server error", error });
   }
 };
+
 // Get all users with role "student"
 exports.getAllStudents = async (req, res) => {
   try {
