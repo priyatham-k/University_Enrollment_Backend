@@ -1,19 +1,73 @@
 const Course = require("../models/Course");
-const Instructor = require('../models/Instructor');
+const Instructor = require("../models/Instructor");
+const mongoose = require("mongoose");
+
 exports.addCourse = async (req, res) => {
-  const { courseName, courseCode, courseNumber, description,term } = req.body;
+  const { courseName, courseCode, courseNumber, description, term, sections } =
+    req.body;
 
   try {
+    // Validate instructor IDs in sections
+    const validatedSections = sections.map((section) => {
+      if (
+        section.instructor &&
+        !mongoose.Types.ObjectId.isValid(section.instructor)
+      ) {
+        throw new Error(`Invalid instructor ID: ${section.instructor}`);
+      }
+      return {
+        sectionName: section.sectionName,
+        instructor: section.instructor
+          ? new mongoose.Types.ObjectId(section.instructor)
+          : null,
+      };
+    });
+
     const course = new Course({
       courseName,
       courseCode,
       courseNumber,
-      description,term,
-      instructor: null, // Initially no instructor
+      description,
+      term,
+      sections: validatedSections,
     });
 
     await course.save();
     res.status(201).json(course);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+exports.updateCourse = async (req, res) => {
+  const { id } = req.params;
+  const { courseName, courseCode, courseNumber, description, term, sections } =
+    req.body;
+
+  try {
+    const updatedCourse = await Course.findByIdAndUpdate(
+      id,
+      {
+        courseName,
+        courseCode,
+        courseNumber,
+        description,
+        term,
+        sections: sections.map((section) => ({
+          sectionName: section.sectionName,
+          instructor: section.instructor
+            ? new mongoose.Types.ObjectId(section.instructor)
+            : null,
+        })),
+      },
+      { new: true } // Return the updated document
+    );
+
+    if (!updatedCourse) {
+      return res.status(404).json({ message: "Course not found" });
+    }
+
+    res.status(200).json(updatedCourse);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -21,7 +75,8 @@ exports.addCourse = async (req, res) => {
 
 exports.getAllCourses = async (req, res) => {
   try {
-    const courses = await Course.find().populate("instructor"); // Populate instructor details
+    // Fetch all courses and populate the instructor within sections
+    const courses = await Course.find().populate("sections.instructor"); // Correctly populate nested instructors in sections
     res.status(200).json(courses);
   } catch (error) {
     res
@@ -31,9 +86,8 @@ exports.getAllCourses = async (req, res) => {
 };
 
 exports.assignInstructor = async (req, res) => {
-  const  courseId  = req.params.id; // Correctly extract courseId
+  const courseId = req.params.id; // Correctly extract courseId
   const { instructorId } = req.body;
-
 
   try {
     const instructor = await Instructor.findById(instructorId);
@@ -98,16 +152,17 @@ exports.deleteCourse = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-// controllers/courses.js
+
 exports.getCoursesByInstructor = async (req, res) => {
   const { instructorId } = req.params;
 
   try {
-    // Find all courses where the instructor field matches the provided instructorId
-    const courses = await Course.find({ instructor: instructorId }).populate('instructor');
-    
+    const courses = await Course.find({ "sections.instructor": instructorId });
+
     if (courses.length === 0) {
-      return res.status(404).json({ message: "No courses found for this instructor." });
+      return res
+        .status(404)
+        .json({ message: "No courses found for this instructor." });
     }
 
     res.status(200).json(courses);
