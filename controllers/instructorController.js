@@ -78,7 +78,7 @@ exports.updateInstructor = async (req, res) => {
     const updatedInstructor = await Instructor.findByIdAndUpdate(
       instructorId,
       { name, email, department },
-      { new: true, runValidators: true } // `new: true` returns the updated document
+      { new: true, runValidators: true } 
     );
 
     if (!updatedInstructor) {
