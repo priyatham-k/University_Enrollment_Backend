@@ -47,7 +47,7 @@ exports.loginInstructor = async (req, res) => {
 };
 exports.getAllInstructors = async (req, res) => {
   try {
-    const instructors = await Instructor.find(); // Retrieves all instructors
+    const instructors = await Instructor.find();
     res.status(200).json(instructors);
   } catch (error) {
     res.status(500).send("Error fetching instructors: " + error.message);
