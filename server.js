@@ -2,10 +2,13 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
-const authRoutes = require("./routes/userRoutes");
-const applicationRoutes = require("./routes/applicationRoutes");
+const adminRoutes = require("./routes/adminRoutes");
+const studentRoutes = require("./routes/studentRoutes");
 const instructorRoutes = require("./routes/instructorRoutes");
-const courseRoutes = require("./routes/courseRoutes");
+const enrollmentRoutes = require("./routes/enrollmentRoutes");
+const paymentRoutes = require("./routes/paymentRoutes");
+const courceRoutes = require("./routes/courseRoutes");
+const sectionRoutes = require("./routes/sectionRoutes");
 const cors = require("cors");
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -17,16 +20,19 @@ app.use(
   })
 );
 app.use(bodyParser.json());
-app.use("/api/user", authRoutes);
-app.use("/api", applicationRoutes);
-app.use("/api/instructors", instructorRoutes);
-app.use("/api/courses", courseRoutes);
+
 // Connect to MongoDB
 mongoose
   .connect("mongodb://127.0.0.1:27017/University_management", {})
   .then(() => console.log("Connected to MongoDB"))
   .catch((err) => console.error("MongoDB connection error:", err));
-
+  app.use("/api/admin", adminRoutes);
+  app.use("/api/student", studentRoutes);
+  app.use("/api/instructors", instructorRoutes);
+  app.use("/api/enrollment", enrollmentRoutes);
+  app.use("/api/payments", paymentRoutes);
+  app.use("/api/courses", courceRoutes);
+  app.use("/api/sections", sectionRoutes);
 // Start the server
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

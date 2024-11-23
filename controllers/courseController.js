@@ -1,201 +1,146 @@
+
 const Course = require("../models/Course");
 const Instructor = require("../models/Instructor");
-const User = require("../models/user");
-const mongoose = require("mongoose");
+const Section = require("../models/Section");
+exports.getAllCourses = async (req, res) => {
+  try {
+    const courses = await Course.find({})
+      .populate({
+        path: "sections", 
+        populate: {
+          path: "instructor",
+          select: "name email username",
+        },
+      });
+
+    res.json(courses); // Return populated courses
+  } catch (error) {
+    console.error("Error fetching courses:", error);
+    res.status(500).json({ message: "Failed to fetch courses", error: error.message });
+  }
+};
+
+
 
 exports.addCourse = async (req, res) => {
-  const { courseName, courseCode, courseNumber, description, term, sections } =
-    req.body;
+  const { courseName, courseCode, courseNumber, description, term, sections } = req.body;
 
   try {
-    // Validate instructor IDs in sections
-    const validatedSections = sections.map((section) => {
-      if (
-        section.instructor &&
-        !mongoose.Types.ObjectId.isValid(section.instructor)
-      ) {
-        throw new Error(`Invalid instructor ID: ${section.instructor}`);
-      }
-      return {
-        sectionName: section.sectionName,
-        instructor: section.instructor
-          ? new mongoose.Types.ObjectId(section.instructor)
-          : null,
-      };
-    });
-
+    // Create the course
     const course = new Course({
       courseName,
       courseCode,
       courseNumber,
       description,
       term,
-      sections: validatedSections,
     });
-
     await course.save();
-    res.status(201).json(course);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-};
 
-exports.updateCourse = async (req, res) => {
-  const { id } = req.params;
-  const { courseName, courseCode, courseNumber, description, term, sections } =
-    req.body;
-
-  try {
-    const updatedCourse = await Course.findByIdAndUpdate(
-      id,
-      {
-        courseName,
-        courseCode,
-        courseNumber,
-        description,
-        term,
-        sections: sections.map((section) => ({
+    // Create sections and link them to the course
+    const sectionIds = await Promise.all(
+      sections.map(async (section) => {
+        const newSection = new Section({
           sectionName: section.sectionName,
-          instructor: section.instructor
-            ? new mongoose.Types.ObjectId(section.instructor)
-            : null,
-        })),
-      },
-      { new: true } // Return the updated document
-    );
-
-    if (!updatedCourse) {
-      return res.status(404).json({ message: "Course not found" });
-    }
-
-    res.status(200).json(updatedCourse);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-exports.getAllCourses = async (req, res) => {
-  try {
-    // Fetch all courses and populate the instructor within sections
-    const courses = await Course.find().populate("sections.instructor"); // Correctly populate nested instructors in sections
-    res.status(200).json(courses);
-  } catch (error) {
-    res
-      .status(400)
-      .json({ message: "Error fetching courses: " + error.message });
-  }
-};
-
-exports.assignInstructor = async (req, res) => {
-  const courseId = req.params.id; // Correctly extract courseId
-  const { instructorId } = req.body;
-
-  try {
-    const instructor = await Instructor.findById(instructorId);
-    if (!instructor) {
-      return res.status(404).json({ error: "Instructor not found" });
-    }
-
-    const updatedCourse = await Course.findByIdAndUpdate(
-      courseId,
-      { instructor: instructorId },
-      { new: true }
-    ).populate("instructor");
-
-    if (!updatedCourse) {
-      return res.status(404).json({ error: "Course not found" });
-    }
-
-    res.json(updatedCourse);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// controllers/courses.js
-exports.removeInstructor = async (req, res) => {
-  const courseId = req.params.id;
-
-  try {
-    // Find and update the course, setting instructor to null
-    const updatedCourse = await Course.findByIdAndUpdate(
-      courseId,
-      { instructor: null }, // Remove instructor
-      { new: true }
-    );
-
-    if (!updatedCourse) {
-      return res.status(404).json({ error: "Course not found" });
-    }
-
-    res.status(200).json({
-      message: "Instructor removed successfully",
-      course: updatedCourse,
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-// controllers/courses.js
-exports.deleteCourse = async (req, res) => {
-  const courseId = req.params.id;
-
-  try {
-    // Find and delete the course by ID
-    const deletedCourse = await Course.findByIdAndDelete(courseId);
-
-    if (!deletedCourse) {
-      return res.status(404).json({ error: "Course not found" });
-    }
-
-    res.status(200).json({ message: "Course deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-exports.getCoursesByInstructor = async (req, res) => {
-  const { instructorId } = req.params;
-
-  try {
-    // Find all courses taught by this instructor
-    const courses = await Course.find({ "sections.instructor": instructorId });
-
-    if (courses.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No courses found for this instructor." });
-    }
-
-    // For each course and section, find enrolled students
-    const coursesWithStudents = await Promise.all(
-      courses.map(async (course) => {
-        const sectionsWithStudents = await Promise.all(
-          course.sections.map(async (section) => {
-            const enrolledStudents = await User.find(
-              { "payment.courseName": course.courseName, "payment.sectionName": section.sectionName },
-              "username"
-            );
-
-            return {
-              sectionName: section.sectionName,
-              enrolledStudents: enrolledStudents.map((student) => student.username),
-            };
-          })
-        );
-
-        return {
-          courseName: course.courseName,
-          courseCode: course.courseCode,
-          term: course.term,
-          description: course.description,
-          sections: sectionsWithStudents,
-        };
+          instructor: section.instructor, // Reference to Instructor
+          course: course._id,
+        });
+        const savedSection = await newSection.save();
+        return savedSection._id;
       })
     );
 
-    res.status(200).json(coursesWithStudents);
+    // Update course with section IDs
+    course.sections = sectionIds;
+    await course.save();
+
+    // Populate sections with instructor details (including username)
+    const populatedCourse = await Course.findById(course._id).populate({
+      path: "sections",
+      populate: { path: "instructor", select: "username" },
+    });
+
+    res.status(201).json({ message: "Course and sections added successfully!", course: populatedCourse });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("Error adding course and sections:", error);
+    res.status(500).json({ message: "Failed to add course and sections", error: error.message });
   }
 };
+  // Update course by ID
+  exports.updateCourse = async (req, res) => {
+    const courseId = req.params.id;
+    const { courseName, courseCode, courseNumber, description, term, sections } = req.body;
+  
+    try {
+      // Step 1: Create or update sections and collect their ObjectIds
+      const sectionIds = await Promise.all(
+        sections.map(async (section) => {
+          if (section._id) {
+            // If the section already exists, update it
+            const updatedSection = await Section.findByIdAndUpdate(
+              section._id,
+              { sectionName: section.sectionName, instructor: section.instructor },
+              { new: true, runValidators: true }
+            );
+            return updatedSection._id;
+          } else {
+            // If the section doesn't exist, create a new one
+            const newSection = new Section({
+              sectionName: section.sectionName,
+              instructor: section.instructor,
+              course: courseId,
+            });
+            const savedSection = await newSection.save();
+            return savedSection._id;
+          }
+        })
+      );
+  
+      // Step 2: Update the course
+      const updatedCourse = await Course.findByIdAndUpdate(
+        courseId,
+        {
+          courseName,
+          courseCode,
+          courseNumber,
+          description,
+          term,
+          sections: sectionIds,
+        },
+        { new: true, runValidators: true }
+      ).populate({
+        path: "sections",
+        populate: { path: "instructor", select: "username name email" },
+      });
+  
+      if (!updatedCourse) {
+        return res.status(404).json({ message: "Course not found" });
+      }
+  
+      res.status(200).json({ message: "Course updated successfully", course: updatedCourse });
+    } catch (error) {
+      console.error("Error updating course:", error);
+      res.status(500).json({ message: "Error updating course", error: error.message });
+    }
+  };
+  
+  
+  
+
+  exports.deleteCourse = async (req, res) => {
+    const courseId = req.params.id;
+  
+    try {
+      const course = await Course.findById(courseId);
+      if (!course) {
+        return res.status(404).json({ message: "Course not found" });
+      }
+      await Section.deleteMany({ course: courseId });
+      await course.deleteOne();
+  
+      res.status(200).json({ message: "Course and associated sections deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting course:", error);
+      res.status(500).json({ message: "Error deleting course", error: error.message });
+    }
+  };
+  

@@ -1,13 +1,12 @@
-const express = require('express');
-const insFunc = require('../controllers/instructorController');
-
+const express = require("express");
 const router = express.Router();
+const instructorController = require("../controllers/instructorController");
 
-// Define routes
-router.post('/add', insFunc.addInstructor); // Add new instructor
-router.post('/login', insFunc.loginInstructor);
-router.get('/instructors', insFunc.getAllInstructors);
-router.delete('/instructors/:id', insFunc.deleteInstructor);
-// Add more routes as needed
-router.put('/instructors/:id', insFunc.updateInstructor);
+router.post("/login", instructorController.loginInstructor);
+router.get("/courses/:instructorId", instructorController.getInstructorAssignedCourses);
+router.get("/all", instructorController.getAllInstructors);
+router.post("/add", instructorController.addInstructor);
+router.put("/:id", instructorController.updateInstructor);
+router.delete("/:id", instructorController.deleteInstructor);
+
 module.exports = router;
