@@ -9,7 +9,7 @@ exports.getAllCourses = async (req, res) => {
         path: "sections", 
         populate: {
           path: "instructor",
-          select: "name email username",
+          select: "firstName lastName email",
         },
       });
 
@@ -23,52 +23,68 @@ exports.getAllCourses = async (req, res) => {
 
 
 exports.addCourse = async (req, res) => {
-  const { courseName, courseCode, courseNumber, description, term, sections } = req.body;
+  const { courseName, courseCode, description, term, sections } = req.body;
 
   try {
     // Create the course
     const course = new Course({
       courseName,
       courseCode,
-      courseNumber,
       description,
       term,
     });
     await course.save();
 
-    // Create sections and link them to the course
-    const sectionIds = await Promise.all(
-      sections.map(async (section) => {
-        const newSection = new Section({
-          sectionName: section.sectionName,
-          instructor: section.instructor, // Reference to Instructor
-          course: course._id,
-        });
-        const savedSection = await newSection.save();
-        return savedSection._id;
-      })
-    );
+    let sectionIds = [];
+    if (sections && Array.isArray(sections)) {
+      // Filter out sections with empty `sectionName`
+      const validSections = sections.filter((section) => section.sectionName?.trim());
+
+      // Create sections and link them to the course
+      sectionIds = await Promise.all(
+        validSections.map(async (section) => {
+          const newSection = new Section({
+            sectionName: section.sectionName.trim(), // Use trimmed section name
+            instructor: section.instructor || null, // Default to null if not provided
+            course: course._id,
+          });
+          const savedSection = await newSection.save();
+          return savedSection._id;
+        })
+      );
+    }
 
     // Update course with section IDs
     course.sections = sectionIds;
     await course.save();
 
-    // Populate sections with instructor details (including username)
+    // Populate sections with instructor details (firstName, lastName, email)
     const populatedCourse = await Course.findById(course._id).populate({
       path: "sections",
-      populate: { path: "instructor", select: "username" },
+      populate: {
+        path: "instructor",
+        select: "firstName lastName email", // Select only necessary fields
+      },
     });
 
-    res.status(201).json({ message: "Course and sections added successfully!", course: populatedCourse });
+    res.status(201).json({
+      message: "Course and sections added successfully!",
+      course: populatedCourse,
+    });
   } catch (error) {
     console.error("Error adding course and sections:", error);
-    res.status(500).json({ message: "Failed to add course and sections", error: error.message });
+    res.status(500).json({
+      message: "Failed to add course and sections",
+      error: error.message,
+    });
   }
 };
+
+
   // Update course by ID
   exports.updateCourse = async (req, res) => {
     const courseId = req.params.id;
-    const { courseName, courseCode, courseNumber, description, term, sections } = req.body;
+    const { courseName, courseCode, description, term, sections } = req.body;
   
     try {
       // Step 1: Create or update sections and collect their ObjectIds
@@ -101,7 +117,6 @@ exports.addCourse = async (req, res) => {
         {
           courseName,
           courseCode,
-          courseNumber,
           description,
           term,
           sections: sectionIds,
@@ -109,7 +124,7 @@ exports.addCourse = async (req, res) => {
         { new: true, runValidators: true }
       ).populate({
         path: "sections",
-        populate: { path: "instructor", select: "username name email" },
+        populate: { path: "instructor", select: "firstName lastName email" },
       });
   
       if (!updatedCourse) {

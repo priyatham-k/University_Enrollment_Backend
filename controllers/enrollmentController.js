@@ -3,13 +3,13 @@ const Section = require("../models/Section");
 exports.getAllEnrollments = async (req, res) => {
   try {
     const enrollments = await Enrollment.find()
-      .populate("student", "username")
+      .populate("student", "firstName")
       .populate("course", "courseName")
       .populate("section", "sectionName");
     
     const formattedEnrollments = enrollments.map((enrollment) => ({
       _id: enrollment._id,
-      studentName: enrollment.student.username,
+      studentName: enrollment.student.firstName,
       courseName: enrollment.course.courseName,
       sectionName: enrollment.section.sectionName,
     }));

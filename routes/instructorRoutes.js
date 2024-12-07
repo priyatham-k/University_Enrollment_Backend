@@ -8,5 +8,5 @@ router.get("/all", instructorController.getAllInstructors);
 router.post("/add", instructorController.addInstructor);
 router.put("/:id", instructorController.updateInstructor);
 router.delete("/:id", instructorController.deleteInstructor);
-
+router.post("/change-password", instructorController.changePassword);
 module.exports = router;

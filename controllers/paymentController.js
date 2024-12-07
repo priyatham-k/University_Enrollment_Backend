@@ -6,12 +6,12 @@ const Section = require("../models/Section");
 exports.getAllPayments = async (req, res) => {
   try {
     const payments = await Payment.find()
-      .populate("student", "username") // Ensure the field matches the schema reference
+      .populate("student", "firstName") // Ensure the field matches the schema reference
       .populate("course", "courseName")
       .populate("section", "sectionName");
     const formattedPayments = payments.map((payment) => ({
       _id: payment._id,
-      studentName: payment.student.username,
+      studentName: payment.student.firstName,
       courseName: payment.course.courseName,
       sectionName: payment.section.sectionName,
       amount: payment.amount,
@@ -29,7 +29,6 @@ exports.processPaymentAndEnrollments = async (req, res) => {
   const { userId, totalAmount, paymentDetails, courses } = req.body;
 
   try {
-    console.log("Processing Payment and Enrollments with Data:", req.body);
 
     if (!userId || !totalAmount || !courses || courses.length === 0) {
       return res.status(400).json({ message: "Invalid request. Missing required fields." });
