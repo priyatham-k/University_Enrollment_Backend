@@ -2,6 +2,7 @@ const Student = require("../models/Student");
 const Enrollment = require("../models/Enrollment");
 const Payment = require("../models/Payment");
 const bcrypt = require("bcrypt");
+const Section = require("../models/Section");
 // Student login
 exports.loginStudent = async (req, res) => {
   try {
@@ -113,9 +114,19 @@ exports.updateStudent = async (req, res) => {
   }
 };
 
+
+
 exports.deleteStudent = async (req, res) => {
   try {
     const { id } = req.params; // Student ID passed in the URL
+
+    // Check if the student is enrolled in any course
+    const isEnrolled = await Enrollment.findOne({ student: id });
+    if (isEnrolled) {
+      return res
+        .status(400)
+        .json({ message: "Cannot delete student. The student is enrolled in courses." });
+    }
 
     // Find and delete the student by ID
     const deletedStudent = await Student.findByIdAndDelete(id);
@@ -125,9 +136,11 @@ exports.deleteStudent = async (req, res) => {
 
     res.status(200).json({ message: "Student deleted successfully" });
   } catch (error) {
+    console.error("Error deleting student:", error);
     res.status(500).json({ message: "Error deleting student", error });
   }
 };
+
 
 // Get all students
 exports.getAllStudents = async (req, res) => {
@@ -202,12 +215,23 @@ exports.dropCourse = async (req, res) => {
     }
 
     // Remove the associated enrollment record
-    await Enrollment.findOneAndDelete({
+    const enrollment = await Enrollment.findOneAndDelete({
       course: payment.course,
       student: studentId,
     });
 
-    res.status(200).json({ message: "Course dropped successfully" });
+    if (!enrollment) {
+      return res.status(404).json({ message: "Enrollment record not found" });
+    }
+
+    // Increment the available seats in the section
+    await Section.findByIdAndUpdate(
+      payment.section,
+      { $inc: { numberOfSeats: 1 } }, // Increment numberOfSeats by 1
+      { new: true } // Return the updated document
+    );
+
+    res.status(200).json({ message: "Course dropped successfully and seat updated" });
   } catch (error) {
     console.error("Error dropping course:", error);
     res
@@ -215,6 +239,7 @@ exports.dropCourse = async (req, res) => {
       .json({ message: "Failed to drop the course", error: error.message });
   }
 };
+
 
 exports.changePassword = async (req, res) => {
   const { email, currentPassword, newPassword } = req.body;
@@ -250,9 +275,6 @@ exports.changePassword = async (req, res) => {
     res.status(500).json({ message: "Failed to update password", error: error.message });
   }
 };
-
-
-
 exports.changePassword = async (req, res) => {
   const { email, currentPassword, newPassword } = req.body;
 

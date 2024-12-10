@@ -11,6 +11,7 @@ exports.getAllCourses = async (req, res) => {
           path: "instructor",
           select: "firstName lastName email",
         },
+        select: "sectionName numberOfSeats", // Include sectionName and numberOfSeats in the response
       });
 
     res.json(courses); // Return populated courses
@@ -20,33 +21,70 @@ exports.getAllCourses = async (req, res) => {
   }
 };
 
-
-
 exports.addCourse = async (req, res) => {
   const { courseName, courseCode, description, term, sections } = req.body;
 
   try {
-    // Create the course
-    const course = new Course({
-      courseName,
-      courseCode,
-      description,
-      term,
+    // Validate courseName and courseCode
+    const existingCourse = await Course.findOne({
+      $or: [
+        { courseName: courseName.trim() },
+        { courseCode: courseCode.trim() },
+      ],
     });
+
+    if (existingCourse) {
+      return res.status(400).json({
+        message: "Course with the same name or code already exists.",
+      });
+    }
+
+    // Validate sections
+    if (sections && Array.isArray(sections)) {
+      const validSections = sections.filter((section) => section.sectionName?.trim());
+      if (validSections.length !== sections.length) {
+        return res.status(400).json({
+          message: "Some sections are missing sectionName. Please fix them.",
+        });
+      }
+
+      // Check for duplicate section names within the request payload
+      const sectionNames = new Set();
+      for (const section of validSections) {
+        const trimmedName = section.sectionName.trim();
+        if (sectionNames.has(trimmedName)) {
+          return res.status(400).json({
+            message: `Duplicate section name `,
+          });
+        }
+        sectionNames.add(trimmedName);
+      }
+
+    }
+
+    // Proceed with saving the course
+    const course = new Course({
+      courseName: courseName.trim(),
+      courseCode: courseCode.trim(),
+      description: description.trim(),
+      term: term.trim(),
+    });
+
     await course.save();
 
+    // Save sections if valid
     let sectionIds = [];
     if (sections && Array.isArray(sections)) {
-      // Filter out sections with empty `sectionName`
       const validSections = sections.filter((section) => section.sectionName?.trim());
 
-      // Create sections and link them to the course
       sectionIds = await Promise.all(
         validSections.map(async (section) => {
           const newSection = new Section({
-            sectionName: section.sectionName.trim(), // Use trimmed section name
-            instructor: section.instructor || null, // Default to null if not provided
+            sectionName: section.sectionName.trim(),
+            instructor: section.instructor || null,
             course: course._id,
+            day: section.day,
+            timeSlot: section.timeSlot,
           });
           const savedSection = await newSection.save();
           return savedSection._id;
@@ -79,6 +117,7 @@ exports.addCourse = async (req, res) => {
     });
   }
 };
+
 
 
   // Update course by ID
